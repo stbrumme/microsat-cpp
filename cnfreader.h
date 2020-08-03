@@ -31,8 +31,8 @@
   http://www.satcompetition.org/2009/format-benchmarks2009.html
 
   code example:
-    CnfReader r("test.cnf");                                       // read file "test.cnf"
-    if (r.solve()) std::cout <<   "SATISFIABLE" << std::endl;      // run solver and print result
+    CnfReader r("test.cnf");                                       // read file "test.cnf" and run solver
+    if (r.solve()) std::cout <<   "SATISFIABLE" << std::endl;      // print result
     else           std::cout << "UNSATISFIABLE" << std::endl;
     std::cout << "variable 1 is " << std::boolalpha << r.query(1); // query variable (true or false)
 
@@ -42,14 +42,13 @@
 */
 
 #include "microsat-cpp.h"
+#include <string>
 #include <fstream>
-#include <sstream>
 #include <vector>
 
-#include <iostream>
-
-
 // CNF file reader wrapper for microsat-cpp
+// note: there are no checks whether the number of variabes or number of clauses
+//       specified in the file header actually match the parsed clauses
 class CnfReader
 {
 private:
@@ -60,7 +59,7 @@ private:
 
 public:
   // read CNF file and run solver
-  CnfReader(const std::string& filename, unsigned int mem_max = 1 << 20)
+  explicit CnfReader(const std::string& filename, unsigned int mem_max = 1 << 20)
   : m_solver(0),
     m_satisfiable(false),
     m_nVars(0),
@@ -91,6 +90,7 @@ public:
 
     // add clauses
     std::vector<int> clause;
+    clause.reserve(m_nVars);
     while (f.good())
     {
       // read literals one-by-one
@@ -105,7 +105,9 @@ public:
       }
 
       // add clause
-      m_solver->add(clause.data(), clause.size()); // same as m_solver->add(clause);
+      if (!clause.empty())
+        m_solver->add(clause);
+
       // re-use the container
       clause.clear();
     }
@@ -121,8 +123,7 @@ public:
   bool solve() const   { return m_satisfiable; }
 
   // return solution of a single variable
-  bool query(unsigned int var) const {
-    return m_solver ? m_solver->query(var) : false; }
+  bool query(unsigned int var) const { return m_solver ? m_solver->query(var) : false; }
 
   // number of variables
   unsigned int getNumVars()    const { return m_nVars; }

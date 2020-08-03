@@ -213,7 +213,7 @@ protected:
 
   void init (unsigned int nVars, unsigned int mem_max) {    // Same parameters as constructor
     m_nVars = nVars; if (m_nVars == 0) m_nVars = 1;         // The code assumes that there is at least one variable
-    m_model = new bool[m_nVars];                            // Allocate memory for the final variable assignment
+    m_model = new bool[m_nVars + 1];                        // Allocate memory for the final variable assignment
     m_mem_max = mem_max >= 10*nVars ? mem_max : 10*nVars;   // Need at least about 10 temporary integers per variable
     m_DB = new int[mem_max];                                // Allocate the initial database
 
@@ -252,10 +252,9 @@ public:
   void add (int var) { add(&var, 1); }                      // Set a unit: true if var is positive or false if negative
 
   bool add (const int* in, unsigned int size) {             // Define a clause
-    if (m_DB == 0) return false;                            // Not allowed after solve() was called
+    if (m_DB == 0 || in == 0 || size == 0) return false;    // Not allowed after solve() was called
     const int* clause = addClause (in, size, true);         // Add that clause to database
-    if (size == 0 || (size == 1 && m_false[clause[0]]))     // Check for empty clause or conflicting unit
-      return false;                                         // If either is found return false / "UNSAT"
+    if (size == 1 &&  m_false[ clause[0]]) return false;    // Check for conflicting unit
     if (size == 1 && !m_false[-clause[0]])                  // Check for a new unit
       assign (clause, true);                                // Directly assign new units (forced)
     return true; }
@@ -264,8 +263,8 @@ public:
   bool add (const Container& v) {                           // A container has to have begin() and end()
     unsigned int size = 0;                                  // Such as std::vector, std::deque, std::set, std::list
     typename Container::const_iterator i = v.begin();
-    while (i != v.end()) m_buffer[size++] = int(*i++);      // Plain copy to internal buffer
-    if (size > 0 && m_buffer[size - 1] == 0) size--;        // Remove trailing zero (for compatibility with CNF)
+    while (i != v.end() && *i != 0)                         // Plain copy to internal buffer, avoids zeros
+      m_buffer[size++] = int(*i++);
     return add (m_buffer, size); }                          // And call the other add() function
 
   //template <typename T>                                   // Uncomment if your compiler supports std::initializer_list
@@ -297,3 +296,4 @@ public:
   bool query(unsigned int var) const {                      // Return solution of a single variable
     return (int)var > m_nVars ? false : m_model[var]; }     // Return false for invalid variables
 };
+

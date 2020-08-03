@@ -29,8 +29,12 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// compile:
+// g++ cnfreader.cpp -o cnfreader -std=c++11 -O3
+
 #include "../cnfreader.h"
 #include <iostream>
+#include <string>
 
 int main(int argc, char* argv[])
 {
@@ -49,26 +53,37 @@ int main(int argc, char* argv[])
     memLimit = std::stoi(argv[2]);
 
   // repeat if out-of-memory exception is thrown
-  while (true)
+  bool done = false;
+  while (!done)
     try
     {
       // parse file and run solver
       CnfReader c(filename, memLimit);
 
       // show some statistics
-      std::cout << "c microsat-cpp" << std::endl;
-      std::cout << "c solving " << filename << std::endl;
-      std::cout << c.getNumVars() << " variables, " << c.getNumClauses() << " clauses" << std::endl;
-      std::cout << (c.solve() ? "s SATISFIABLE" : "s UNSATISFIABLE") << std::endl;
+      std::cout << "c microsat-cpp" << std::endl
+                << "c solving " << filename << std::endl
+                << "c " << c.getNumVars() << " variables, " << c.getNumClauses() << " clauses" << std::endl
+                << (c.solve() ? "s SATISFIABLE" : "s UNSATISFIABLE") << std::endl;
 
       // print model
-      std::cout << "c model ";
+      std::string line = "v ";
       for (auto i = 1; i <= (int)c.getNumVars(); i++)
-        std::cout << (c.query(i) ? +i : -i) << " ";
-      std::cout << std::endl;
+      {
+        // avoid too long lines
+        if (line.size() > 75)
+        {
+          std::cout << line << std::endl;
+          line = "v ";
+        }
+
+        line += std::to_string(c.query(i) ? +i : -i) + " ";
+      }
+      // don't forget the last line and terminate with a single zero
+      std::cout << line << std::endl << "v 0" << std::endl;
 
       // we're done
-      break;
+      done = true;
     }
     catch (const char* e)
     {

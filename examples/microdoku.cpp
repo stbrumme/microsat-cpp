@@ -25,6 +25,7 @@
 // g++ microdoku.cpp -o microdoku -std=c++11 -O3
 
 #include "../microsat-cpp.h"
+#include "../cnfwriter.h"
 
 #include <vector>
 #include <string>
@@ -36,6 +37,9 @@
 bool findAllSolutions = false;
 // show problem and solution on STDOUT
 bool verbose          = false;
+// create a CNF files named "microdoku1.cnf", "microdoku2.cnf", etc. (used to compare MicroSAT with other SAT solvers)
+bool createCnfFiles   = true;
+
 
 // benchmark - files taken from https://github.com/t-dillon/tdoku/blob/master/data.zip
 // puzzles0_kaggle with 100000 problems
@@ -441,6 +445,20 @@ int main(int argc, char* argv[])
         {
           std::cout << "solution " << numSolutions << ":" << std::endl;
           p.display();
+        }
+
+        // optional: CNF output
+        if (createCnfFiles)
+        {
+          // pretty much the same as above but using class CnfWriter instead of MicroSAT
+          CnfWriter writer(numVars);
+          for (auto v : knownVars)
+            writer.add(v);
+          for (auto& c : clauses)
+            writer.add(c);
+
+          auto filename = "microdoku" + std::to_string(numProblems) + ".cnf";
+          writer.write(filename);
         }
 
         // no need for further search ?

@@ -37,6 +37,8 @@
 // g++ microhitori.cpp -o microhitori -std=c++11 -Os
 
 #include "../microsat-cpp.h"
+#include "../cnfwriter.h"
+
 #include <vector>
 #include <iostream>
 
@@ -253,6 +255,13 @@ int main()
     if (scannedAll)
     {
       std::cout << "=> found solution !" << std::endl;
+
+      // create CNF file
+      CnfWriter writer(numVars);
+      for (auto& c : clauses)
+        writer.add(c);
+      writer.write("microhitori.cnf");
+
       break;
     }
 
