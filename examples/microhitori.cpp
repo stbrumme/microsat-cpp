@@ -34,7 +34,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // compile:
-// g++ microhitori.cpp -o microhitori -std=c++11 -Os
+// g++ microhitori.cpp -o microhitori -std=c++11
 
 #include "../microsat-cpp.h"
 #include "../cnfwriter.h"
@@ -111,17 +111,18 @@ int main()
   width =  8; height =  8; problem = wiki;
   //width =  4, height =  4; problem = easy;
   //width =  6, height =  6; problem = medium;
-  //width =  8, height =  8; problem = large;
+  width =  8, height =  8; problem = large;
   //width = 10, height = 10; problem = big;
 
   // display initial board
+  std::cout << "c input:" << std::endl;
   for (auto y = 0; y < height; y++)
   {
+    std::cout << "c ";
     for (auto x = 0; x < width; x++)
       std::cout << get(x,y);
     std::cout << std::endl;
   }
-  std::cout << std::endl;
 
   // --------------- define constraints ---------------
 
@@ -158,125 +159,149 @@ int main()
           clauses.push_back({ +id(x,scan), +id(x,y) });
     }
 
+  auto satMemory  = 10*1000; // 10,000 temporaries are sufficient for the given problems (even the big ones)
+  auto solutions  = 0;
   auto iterations = 1;
   while (true)
   {
-    // --------------- SAT solver ---------------
-
-    auto numVars = width * height;
-    MicroSAT s(numVars);
-
-    // add clauses
-    for (auto& c : clauses)
-      s.add(c);
-
-    std::cout << "(" << numVars << " variables, " << clauses.size() << " clauses)" << std::endl;
-
-    // run the SAT solver
-    if (!s.solve())
+    try
     {
-      std::cout << "FAILED" << std::endl;
-      break;
-    }
+      // --------------- SAT solver ---------------
 
-    // --------------- check solution ---------------
+      auto numVars = width * height;
+      MicroSAT s(numVars, satMemory);
 
-    // all non-erased cells need to be connected
-    // => it's quite hard to convert this requirement to CNF
-    //    therefore I allow the SAT solver to create solutions
-    //    violating this rule, check this rule in separate code,
-    //    exclude failed solutions and re-run the solver
-
-    // keep track of processed cells
-    std::vector<char> processed(width * height + 1, false);
-
-    // iterative floodfill algorithm, starts in the upper-left corner
-    // see https://en.wikipedia.org/wiki/Flood_fill
-    std::vector<std::pair<short, short>> todo = { { 0,0 } };
-    // upper-right corner erased ?
-    if (s.query(id(0,0)))
-      todo.front() = { 1,0 }; // replace with its right neighbor
-
-    while (!todo.empty())
-    {
-      // pick a cell
-      auto next = todo.back();
-      todo.pop_back();
-
-      // get its coordinates
-      auto x = next.first;
-      auto y = next.second;
-
-      // out of bounds ?
-      if (x < 0 || x >= width ||
-          y < 0 || y >= height)
-        continue;
-
-      // skip erased cells
-      if (s.query(id(x,y)))
-        continue;
-
-      // already processed ?
-      if (processed[id(x,y)])
-        continue;
-
-      // mark cell as processed
-      processed[id(x,y)] = true;
-
-      // continue with its neighbors, too
-      todo.push_back({ x-1,y });
-      todo.push_back({ x+1,y });
-      todo.push_back({ x,y-1 });
-      todo.push_back({ x,y+1 });
-    }
-
-    // verify and print solution
-    std::cout << "candidate " << iterations << ":" << std::endl;
-    auto scannedAll = true;
-    for (auto y = 0; y < height; y++)
-    {
-      for (auto x = 0; x < width; x++)
-      {
-        // look for a non-erased cell that wasn't processed by my flood-fill code
-        auto isErased = s.query(id(x,y));
-        scannedAll &= isErased || processed[id(x,y)];
-
-        // and let's print the cell, too
-        if (isErased)
-          std::cout << ".";
-        else
-          std::cout << get(x,y);
-      }
-      std::cout << std::endl;
-    }
-    std::cout << std::endl;
-
-    // if we reached all cells then the candidate is a solution
-    if (scannedAll)
-    {
-      std::cout << "=> found solution !" << std::endl;
-
-      // create CNF file
-      CnfWriter writer(numVars);
+      // add clauses
       for (auto& c : clauses)
-        writer.add(c);
-      writer.write("microhitori.cnf");
+        s.add(c);
 
-      break;
-    }
+      std::cout << "c " << numVars << " variables, " << clauses.size() << " clauses" << std::endl;
 
-    // --------------- exclude solution ---------------
+      // run the SAT solver
+      if (!s.solve())
+        break;
 
-    // look for erased cells and disallow their combination
-    Clause exclude;
-    for (auto y = 0; y < height; y++)
-      for (auto x = 0; x < width; x++)
+      // --------------- check solution ---------------
+
+      // all non-erased cells need to be connected
+      // => it's quite hard to convert this requirement to CNF
+      //    therefore I allow the SAT solver to create solutions
+      //    violating this rule, check this rule in separate code,
+      //    exclude failed solutions and re-run the solver
+
+      // keep track of processed cells
+      std::vector<char> processed(width * height + 1, false);
+
+      // iterative floodfill algorithm, starts in the upper-left corner
+      // see https://en.wikipedia.org/wiki/Flood_fill
+      std::vector<std::pair<short, short>> todo = { { 0,0 } };
+      // upper-right corner erased ?
+      if (s.query(id(0,0)))
+        todo.front() = { 1,0 }; // replace with its right neighbor
+
+      while (!todo.empty())
+      {
+        // pick a cell
+        auto next = todo.back();
+        todo.pop_back();
+
+        // get its coordinates
+        auto x = next.first;
+        auto y = next.second;
+
+        // out of bounds ?
+        if (x < 0 || x >= width ||
+            y < 0 || y >= height)
+          continue;
+
+        // skip erased cells
         if (s.query(id(x,y)))
-          exclude.push_back( -id(x,y) );
+          continue;
 
-    clauses.push_back(std::move(exclude));
-    iterations++;
+        // already processed ?
+        if (processed[id(x,y)])
+          continue;
+
+        // mark cell as processed
+        processed[id(x,y)] = true;
+
+        // continue with its neighbors, too
+        todo.push_back({ x-1,y });
+        todo.push_back({ x+1,y });
+        todo.push_back({ x,y-1 });
+        todo.push_back({ x,y+1 });
+      }
+
+      // verify and print solution
+      std::cout << "c candidate " << iterations << ":" << std::endl;
+      auto scannedAll = true;
+      for (auto y = 0; y < height; y++)
+      {
+        std::cout << "c ";
+        for (auto x = 0; x < width; x++)
+        {
+          // look for a non-erased cell that wasn't processed by my flood-fill code
+          auto isErased = s.query(id(x,y));
+          scannedAll &= isErased || processed[id(x,y)];
+
+          // and let's print the cell, too
+          if (isErased)
+            std::cout << ".";
+          else
+            std::cout << get(x,y);
+        }
+        std::cout << std::endl;
+      }
+
+      // if we reached all cells then the candidate is a solution
+      if (scannedAll)
+      {
+        std::cout << "c found solution !" << std::endl;
+        solutions++;
+
+        // show solution
+        std::cout << "v ";
+        for (auto i = 1; i <= numVars; i++)
+          std::cout << (s.query(i) ? +i : -i) << " ";
+        std::cout << "0" << std::endl;
+
+        // create CNF file
+        CnfWriter writer(numVars);
+        for (auto& c : clauses)
+          writer.add(c);
+        writer.write("microhitori.cnf");
+
+        break;
+      }
+
+      // --------------- exclude solution ---------------
+
+      // look for erased cells and disallow their combination
+      Clause exclude;
+      for (auto y = 0; y < height; y++)
+        for (auto x = 0; x < width; x++)
+          if (s.query(id(x,y)))
+            exclude.push_back( -id(x,y) );
+
+      clauses.push_back(std::move(exclude));
+      iterations++;
+    }
+    catch (const char* e)
+    {
+      // out of memory, restart with larger allocation
+      satMemory *= 2;
+      std::cout << "c need more memory ... " << e << " now: " << satMemory << std::endl;
+    }
   }
 
+  // failed
+  if (solutions == 0)
+  {
+    std::cout << "s UNSATISFIABLE" << std::endl;
+    return 1;
+  }
+
+  // succeeded
+  std::cout << "s SATISFIABLE" << std::endl;
   return 0;
 }

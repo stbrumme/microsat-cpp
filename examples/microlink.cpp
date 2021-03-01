@@ -34,7 +34,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // compile:
-// g++ microlink.cpp -o microlink -std=c++11 -Os
+// g++ microlink.cpp -o microlink -std=c++11
 
 #include "../microsat-cpp.h"
 #include "../cnfwriter.h"
@@ -58,6 +58,7 @@ auto wiki2    = "    0 "
                 " 1  11"
                 " 2    ";
 // problems from https://www.janko.at/Raetsel/Slitherlink/index-2.htm
+// (puzzles made by Otto Janko unless stated otherwise)
 auto janko1   = "1  0"
                 "    "
                 "1 21"
@@ -228,16 +229,16 @@ int id(int x, int y, int direction)
 
 int main()
 {
-  //width =  4, height =  4; problem = wiki1;
-  //width =  6, height =  6; problem = wiki2;
-  //width =  4, height =  4; problem = janko1;
-  //width =  6, height =  6; problem = janko21;
-  //width =  8, height =  8; problem = janko41;
-  //width = 11, height = 11; problem = janko888;
-  width = 15, height = 15; problem = janko401;
-  //width = 45, height = 30; problem = janko100;
-  //width =  6, height =  8; problem = doug1;
-  //width = 45, height = 31; problem = doug2;
+  //width =  4; height =  4; problem = wiki1;
+  //width =  6; height =  6; problem = wiki2;
+  //width =  4; height =  4; problem = janko1;
+  //width =  6; height =  6; problem = janko21;
+  //width =  8; height =  8; problem = janko41;
+  //width = 11; height = 11; problem = janko888;
+  width = 15; height = 15; problem = janko401;
+  //width = 45; height = 30; problem = janko100;
+  //width =  6; height =  8; problem = doug1;
+  //width = 45; height = 31; problem = doug2;
 
   // basic size check
   if (problem.size() != width * height || problem.empty())
@@ -536,10 +537,13 @@ int main()
         std::cout << "c solution " << solutions << " found !" << std::endl;
 
         // write CNF file
-        CnfWriter writer(numVars);
-        for (auto& c : clauses)
-          writer.add(c);
-        writer.write("microlink" + std::to_string(solutions) + ".cnf");
+        if (solutions == 1)
+        {
+          CnfWriter writer(numVars);
+          for (auto& c : clauses)
+            writer.add(c);
+          writer.write("microlink" + std::to_string(solutions) + ".cnf");
+        }
 
         if (!findAllSolutions)
           break;
@@ -549,7 +553,7 @@ int main()
     {
       // out of memory, restart with larger allocation
       satMemory += 100000;
-      std::cout << "need more memory ... " << e << " now: " << satMemory << std::endl;
+      std::cout << "c need more memory ... " << e << " now: " << satMemory << std::endl;
     }
   }
 
@@ -557,7 +561,7 @@ int main()
   if (solutions > 0)
   {
     if (findAllSolutions)
-      std::cout << "c there are " << solutions << " distinct solutions" << std::endl;
+      std::cout << "c " << solutions << " distinct solutions" << std::endl;
 
     std::cout << "s SATISFIABLE" << std::endl;
     return 0;

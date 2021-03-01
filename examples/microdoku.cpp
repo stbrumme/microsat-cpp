@@ -22,7 +22,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // compile:
-// g++ microdoku.cpp -o microdoku -std=c++11 -O3
+// g++ microdoku.cpp -o microdoku -std=c++11
 
 #include "../microsat-cpp.h"
 #include "../cnfwriter.h"
@@ -36,7 +36,7 @@
 // find all solutions for a sudoku (a sudoku should be unique => typically not needed)
 bool findAllSolutions = false;
 // show problem and solution on STDOUT
-bool verbose          = false;
+bool verbose          = true;
 // create a CNF files named "microdoku1.cnf", "microdoku2.cnf", etc. (used to compare MicroSAT with other SAT solvers)
 bool createCnfFiles   = true;
 
@@ -114,6 +114,7 @@ public:
   {
     for (auto y = 1; y <= size; y++)
     {
+      std::cout << "c ";
       for (auto x = 1; x <= size; x++)
       {
         auto current = problem[offset(x, y)];
@@ -295,7 +296,7 @@ int main(int argc, char* argv[])
   // let's solve all problems ...
   for (auto p : allProblems)
   {
-    std::cout << "problem " << ++numProblems << "/" << allProblems.size() << ": " << std::flush;
+    std::cout << "c problem " << ++numProblems << "/" << allProblems.size() << ": " << std::flush;
 
     // display current problem
     if (verbose)
@@ -412,7 +413,7 @@ int main(int argc, char* argv[])
         MicroSAT s(numVars, satMemory);
 
         if (verbose)
-          std::cout << numVars << " variables and " << clauses.size() << " clauses" << std::endl;
+          std::cout << "c " << numVars << " variables and " << clauses.size() << " clauses" << std::endl;
 
         // set all known variables
         for (auto v : knownVars) // v is an integer
@@ -443,7 +444,7 @@ int main(int argc, char* argv[])
         // display that solution
         if (verbose)
         {
-          std::cout << "solution " << numSolutions << ":" << std::endl;
+          std::cout << "c solution " << numSolutions << ":" << std::endl;
           p.display();
         }
 
@@ -484,14 +485,12 @@ int main(int argc, char* argv[])
       {
         // out of memory, restart with larger allocation
         satMemory += 50000;
-        std::cout << "need more memory ... " << e << " now: " << satMemory << std::endl;
+        std::cout << "c need more memory ... " << e << " now: " << satMemory << std::endl;
       }
     }
 
     // print current problem's results
-    std::cout << "found " << numSolutions << " solution(s)" << std::endl;
-    if (verbose)
-      std::cout << std::endl;
+    std::cout << "c found " << numSolutions << " solution(s)" << std::endl;
 
     // update statistics
     if (numSolutions == 0)
@@ -505,11 +504,19 @@ int main(int argc, char* argv[])
   }
 
   // print summary
-  std::cout << "summary: " << numFound  << " solved problems ("
+  std::cout << "c summary: " << numFound  << " solved problems ("
             << numUnique << " with exactly one solution plus "
             << (numFound - numUnique) << " non-unique with a total of " << (numTotal - numUnique) << " solutions), "
-            << numFailed << " failed" << std::endl
+            << numFailed << " failed"
             << std::endl;
+
+  if (allProblems.size() == 1)
+  {
+    if (numFailed == 0)
+      std::cout << "s SATISFIABLE"   << std::endl;
+    else
+      std::cout << "s UNSATISFIABLE" << std::endl;
+  }
 
   return numFailed;
 }

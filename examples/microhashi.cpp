@@ -34,7 +34,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // compile:
-// g++ c.cpp -o microhashi -std=c++11 -Os
+// g++ microhashi.cpp -o microhashi -std=c++11
 
 #include "../microsat-cpp.h"
 #include "../cnfwriter.h"
@@ -75,6 +75,7 @@ auto wiki3    = "2 4 3 1 2  1 "
                 "  1 2        "
                 "3    3 1 2  2";
 // a few problems from https://www.janko.at/Raetsel/Hashi/index.htm
+// (puzzles made by Otto Janko unless stated otherwise)
 auto janko12  = "3 3 3"
                 "     "
                 "4  1 "
@@ -266,13 +267,13 @@ void show(const MicroSAT& s, const std::string& indent = "c ")
 
 int main()
 {
-  //width =  7, height =  7; problem = wiki1;
-  //width =  7, height =  7; problem = wiki2;
-  width = 13, height = 13; problem = wiki3;
-  //width =  5, height =  5; problem = janko12;
-  //width =  8, height =  8; problem = janko11;
-  //width = 25, height = 15; problem = janko60;
-  //width = 20, height = 14; problem = janko359;
+  //width =  7; height =  7; problem = wiki1;
+  //width =  7; height =  7; problem = wiki2;
+  width = 13; height = 13; problem = wiki3;
+  //width =  5; height =  5; problem = janko12;
+  //width =  8; height =  8; problem = janko11;
+  //width = 25; height = 15; problem = janko60;
+  //width = 20; height = 14; problem = janko359;
   bool showIntermediateSteps = false;
 
   // number of potential bridges
@@ -566,11 +567,23 @@ int main()
         solutions++;
         std::cout << "c solution " << solutions << " found !" << std::endl;
 
+        // show first solution
+        if (solutions == 1)
+        {
+          std::cout << "v ";
+          for (auto i = 1; i <= numVars; i++)
+            std::cout << (s.query(i) ? +i : -i) << " ";
+          std::cout << "0" << std::endl;
+        }
+
         // write CNF file
-        CnfWriter writer(numVars);
-        for (auto& c : clauses)
-          writer.add(c);
-        writer.write("microhashi" + std::to_string(solutions) + ".cnf");
+        if (solutions == 1)
+        {
+          CnfWriter writer(numVars);
+          for (auto& c : clauses)
+            writer.add(c);
+          writer.write("microhashi" + std::to_string(solutions) + ".cnf");
+        }
 
         // done ?
         if (!findAllSolutions)
@@ -592,7 +605,7 @@ int main()
     {
       // out of memory, restart with larger allocation
       satMemory += 10000;
-      std::cout << "need more memory ... " << e << " now: " << satMemory << std::endl;
+      std::cout << "c need more memory ... " << e << " now: " << satMemory << std::endl;
     }
   }
 
@@ -600,7 +613,7 @@ int main()
   if (solutions > 0)
   {
     if (findAllSolutions)
-      std::cout << "c summary: there are " << solutions << " distinct solutions" << std::endl;
+      std::cout << "c summary: " << solutions << " distinct solutions" << std::endl;
 
     std::cout << "s SATISFIABLE" << std::endl;
     return 0;
