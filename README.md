@@ -1,6 +1,6 @@
 # MicroSAT/C++
-Marijn Heule's MicroSAT ( https://github.com/marijnheule/microsat ) is a great compact SAT solver written in C.
-It has a few limitations so I decided to convert it into a single-header C++ library.
+Marijn Heule's MicroSAT ( https://github.com/marijnheule/microsat ) is a great compact SAT solver written in C.\
+It has a few limitations so I decided to convert it into a single-header C++ library.\
 *Note*: the main algorithm wasn't changed - therefore execution speed is pretty much identical.
 
 # Sample Code
@@ -29,7 +29,7 @@ The syntax follows closely the CNF file format:
 - unlike CNF, clauses are not terminated by a zero
 
 The library should compile on most C++ compilers without any warnings.
-I tested it on a variety of GCC versions plus Visual C++.
+I tested it on a variety of GCC versions, CLang and Visual C++.
 
 # Improvements
 1. fetch result
@@ -54,4 +54,3 @@ I tested it on a variety of GCC versions plus Visual C++.
 # Limitations
 1. only very basic error handling
 2. you need to know your approximate memory usage right away in the constructor
-3. you can' t call `add` after `solve`

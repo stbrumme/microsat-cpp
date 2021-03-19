@@ -66,9 +66,6 @@
 
   A const char* exception is thrown if default memory allocation wasn't sufficient: "out of memory"
   Just increase the constructor's second parameter (default: 1 << 20, which means 1 million temporaries).
-
-  Please keep in mind that you CAN'T re-use a MicroSAT object after you called solve(),
-  (no more add() or calling solve() again), you have to create a new MicroSAT object.
 *************************************************************************************/
 
 class MicroSAT {
@@ -81,17 +78,18 @@ protected:
   enum { END = -9, UNSAT = 0, SAT = 1, MARK = 2, NOTIMPLIED = 5, IMPLIED = 6 };// Internal constants, DON'T CHANGE
   enum { InitialMaxLemmas = 2000, LemmaIncrement = 300 };   // Adjust these two lemma constants to tweak performance
 
-  inline int abs(int x) { return x >= 0 ? +x : -x; }        // Return absolute value (avoids #include <cstdlib> )
+  inline int abs (int x) { return x >= 0 ? +x : -x; }       // Return absolute value (avoids #include <cstdlib> )
 
   template <typename T>
-  T* getMemory (unsigned int mem_size) {                    // Allocate memory for mem_size integers
-    const unsigned int PerInt = sizeof(int) / sizeof(T);    // Compact storage for non-ints
-    if (PerInt != 1) mem_size = (mem_size + PerInt - 1) / PerInt;
+  T* getMemory (unsigned int numElements) {                 // Allocate memory for mem_size integers
+    const unsigned int PerInt = sizeof (int) / sizeof (T);  // Compact storage for non-ints
+    unsigned int mem_size = numElements;
+    if (PerInt > 1) mem_size = (numElements + PerInt - 1) / PerInt;
     if (m_mem_used + mem_size > m_mem_max)                  // Check whether still some space available
       throw "out of memory";
     int* store = m_DB + m_mem_used;                         // Compute a pointer to the new memory location
     m_mem_used += mem_size;                                 // Update the size of the used memory
-    return (T*)store; }                                     // Return the pointer
+    return (T*) store; }                                    // Return the pointer
 
   void assign (const int* reason, bool forced) {            // Make the first literal of the reason true
     int lit = reason[0];                                    // Let lit be the first literal in the reason
@@ -119,16 +117,15 @@ protected:
     while (m_assigned > m_forced) unassign (*(--m_assigned)); // Remove all unforced false lits from falseStack
     m_processed = m_forced; }                               // Reset the processed pointer
 
-  void reduceDB () {                                        // Removes "less useful" lemmas from DB
-    unsigned int keep = 6;                                  // Keep at least 6 lemmas
+  void reduceDB (unsigned int keep = 6) {                   // Removes "less useful" lemmas from DB, keep 6 lemmas
     while (m_nLemmas > m_maxLemmas) m_maxLemmas += LemmaIncrement; // Allow more lemmas in the future
     m_nLemmas = 0;                                          // Reset the number of lemmas
     for (int i = -m_nVars; i <= +m_nVars; i++) {            // Loop over the variables
       if (i == 0) continue;                                 // Variable 0 remains unused
       int* watch = &m_first[i];                             // Get the pointer to the first watched clause
       while (*watch != END)                                 // As long as there are watched clauses
-        if (*watch < (int)m_mem_fixed) watch = &m_DB[*watch];   // Remove the watch if it points to a lemma
-        else                          *watch =  m_DB[*watch]; } // Otherwise (meaning an input clause) go to next watch
+        if (*watch < (int) m_mem_fixed) watch = &m_DB[*watch];   // Remove the watch if it points to a lemma
+        else                           *watch =  m_DB[*watch]; } // Otherwise (meaning an input clause) go to next watch
     int old_used = m_mem_used; m_mem_used = m_mem_fixed;    // Virtually remove all lemmas
     for (int i = m_mem_fixed + 2; i < old_used; i += 3) {   // While the old memory contains lemmas
       unsigned int count = 0, head = i;                     // Get the lemma to which the head is pointing
@@ -160,7 +157,7 @@ protected:
       if (m_false[*m_assigned] == MARK) {                   // If the tail of the stack is MARK
         const int* check = m_assigned;                      // Pointer to check if first-UIP is reached
         while (m_false[*(--check)] != MARK)                 // Check for a MARK literal before decision
-          if (!m_reason[abs(*check)]) goto build;           // Otherwise it is the first-UIP so break
+          if (!m_reason[abs (*check)]) goto build;          // Otherwise it is the first-UIP so break
         clause = &m_DB[m_reason[abs (*m_assigned)]];        // Get the reason and ignore first literal
         while (*clause) bump (*(clause++)); }               // MARK all literals in reason
       unassign (*m_assigned); }                             // Unassign the tail of the stack
@@ -215,7 +212,7 @@ protected:
     m_nVars = nVars; if (m_nVars == 0) m_nVars = 1;         // The code assumes that there is at least one variable
     m_model = new bool[m_nVars + 1];                        // Allocate memory for the final variable assignment
     m_mem_max = mem_max >= 10*nVars ? mem_max : 10*nVars;   // Need at least about 10 temporary integers per variable
-    m_DB = new int[mem_max];                                // Allocate the initial database
+    m_DB = new int[m_mem_max];                              // Allocate the initial database
 
     m_mem_used      = 0;                                    // The number of integers allocated in the DB
     m_nLemmas       = 0;                                    // The number of learned clauses -- redundant means learned
@@ -235,24 +232,24 @@ protected:
     m_DB[m_mem_used++] = 0;                                 // Make sure there is a 0 before the clauses are loaded
 
     for (int i = 1; i <= m_nVars; i++) {                    // Initialize the main datastructures:
-      m_prev [i] = i - 1; m_next[i-1] = i;                  // the double-linked list for variable-move-to-front,
-      m_model[i] = false;                                   // the model (phase-saving)
-      m_false[i] = m_false[-i] = UNSAT;                     // the false array,
-      m_first[i] = m_first[-i] = END; }                     // and first (watch pointers)
+      m_prev [i] = i - 1; m_next[i-1] = i;                  // Double-linked list for variable-move-to-front,
+      m_model[i] = false;                                   // Model (phase-saving)
+      m_false[i] = m_false[-i] = UNSAT;                     // The false array,
+      m_first[i] = m_first[-i] = END; }                     // And first (watch pointers)
     m_false[0] = 0;                                         // Stop-marker
     m_head = m_nVars; }                                     // Initialize the head of the double-linked list
 
 /*************************** public interface **************************************/
 public:
   MicroSAT (unsigned int nVars, unsigned int mem_max = 1 << 20) { // 2^20 ints => about a million temporaries
-    init(nVars, mem_max); }                                 // Prepare data structures
+    init (nVars, mem_max); }                                // Prepare data structures
 
-  virtual ~MicroSAT () { delete[] m_model; }                // Deallocate memory
+  virtual ~MicroSAT () { delete[] m_model; delete[] m_DB; } // Deallocate memory
 
-  void add (int var) { add(&var, 1); }                      // Set a unit: true if var is positive or false if negative
+  bool add (int var) { return add (&var, 1); }              // Set a unit: true if var is positive or false if negative
 
   bool add (const int* in, unsigned int size) {             // Define a clause
-    if (m_DB == 0 || in == 0 || size == 0) return false;    // Not allowed after solve() was called
+    if (m_DB == 0 || in == 0 || size == 0) return false;    // Not allowed after clauses where deleted
     const int* clause = addClause (in, size, true);         // Add that clause to database
     if (size == 1 &&  m_false[ clause[0]]) return false;    // Check for conflicting unit
     if (size == 1 && !m_false[-clause[0]])                  // Check for a new unit
@@ -262,15 +259,17 @@ public:
   template <typename Container>                             // Same as above, but a convenience function for STL containers
   bool add (const Container& v) {                           // A container has to have begin() and end()
     unsigned int size = 0;                                  // Such as std::vector, std::deque, std::set, std::list
+    if (m_DB == 0) return false;                            // Not allowed after clauses where deleted
     typename Container::const_iterator i = v.begin();
-    while (i != v.end() && *i != 0)                         // Plain copy to internal buffer, avoids zeros
-      m_buffer[size++] = int(*i++);
+    while (i != v.end() && *i != 0)                         // Plain copy to internal buffer, avoid zeros
+      m_buffer[size++] = (int) *i++;
     return add (m_buffer, size); }                          // And call the other add() function
 
   //template <typename T>                                   // Uncomment if your compiler supports std::initializer_list
   //bool add (const std::initializer_list<T>& il) { return add(il); }
 
-  bool solve () {                                           // Determine satisfiability
+  bool solve (bool keepClauses = true) {                    // Determine satisfiability
+    if (!m_DB) return m_model[0];                           // Already solved, return previous result
     int decision = m_head;                                  // Initialize the solver
     bool result = false;                                    // SAT if true, UNSAT if false
     while (true) {                                          // Main solve loop
@@ -278,7 +277,7 @@ public:
       if (!propagate ()) break;                             // Propagation returns UNSAT for a root level conflict
       if (m_nLemmas > old_nLemmas) {                        // If the last decision caused a conflict
         decision = m_head;                                  // Reset the decision heuristic to head
-        unsigned int threshold = (m_slow / 64) * 80;        // Restart threshold, same as 5/4 but
+        unsigned int threshold = (m_slow / 64) * 80;        // Restart threshold, same as 5/4 but more rounding
         if (m_fast > threshold) {                           // If fast average is substantially larger than slow average
           m_fast = threshold; restart ();                   // Restart and update the averages
           if (m_nLemmas > m_maxLemmas) reduceDB (); } }     // Reduce the DB when it contains too many lemmas
@@ -290,10 +289,11 @@ public:
       decision = m_model[decision] ? +decision : -decision; // Otherwise, assign the decision variable based on the model
       m_false[-decision] = SAT;                             // Assign the decision literal to true (change to IMPLIED-1?)
       *(m_assigned++) = -decision;                          // And push it on the assigned stack
-      decision = abs(decision); m_reason[decision] = 0; }   // Decisions have no reason clauses
-      delete[] m_DB; m_DB = 0; return result; }             // Deallocate temporary memory and return result
+      decision = abs (decision); m_reason[decision] = 0; }  // Decisions have no reason clauses
+      if (keepClauses) { restart (); reduceDB (0); }        // Remove all lemmas
+      else             { delete[] m_DB; m_DB = 0; }         // Deallocate temporary memory
+      m_model[0] = result; return result; }                 // And return result
 
-  bool query(unsigned int var) const {                      // Return solution of a single variable
-    return (int)var > m_nVars ? false : m_model[var]; }     // Return false for invalid variables
+  bool query (unsigned int var) const {                     // Return solution of a single variable
+    return (int) var > m_nVars ? false : m_model[var]; }    // Return false for invalid variables
 };
-
